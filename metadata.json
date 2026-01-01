@@ -1,0 +1,7 @@
+{
+  "name": "Tulisan Tangan Punya Cerita",
+  "description": "Aplikasi penganalisis tulisan tangan profesional berbasis AI yang menggunakan prinsip grafologi untuk mengungkap kepribadian dan karakter melalui foto.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
