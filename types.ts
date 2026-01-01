@@ -33,3 +33,7 @@ export enum AppState {
   CONTEXT_RESULT = 'CONTEXT_RESULT',
   ERROR = 'ERROR'
 }
+
+export type ServerAnalysisResponse = AnalysisResult & {
+  contextResult?: ContextualResult | null
+}

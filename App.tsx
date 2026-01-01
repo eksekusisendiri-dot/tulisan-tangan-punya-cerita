@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react'
 import { jsPDF } from "jspdf"
 import { Layout } from './components/Layout'
 import { AppState, AnalysisResult, ContextualResult } from './types'
+import { analyzeHandwritingViaServer } from './services/analyzeViaServer'
 import {
-  analyzeHandwriting,
-  analyzeContextualHandwriting,
   sendReportToAdmin
 } from './services/geminiService'
+
 import { supabase } from './services/supabaseClient'
 
 // --- KONFIGURASI ADMIN ---
@@ -198,17 +198,15 @@ if (error || data !== true) {
     setError(null);
 
     try {
-      const analysisData = await analyzeHandwriting(imageBase64, language);
-      setResult(analysisData);
+      const analysisData = await analyzeHandwritingViaServer(
+  imageBase64,
+  language,
+  contextInput
+);
 
-      let contextData = null;
-      if (contextInput.trim()) {
-        setState(AppState.ANALYZING_CONTEXT);
-        contextData = await analyzeContextualHandwriting(analysisData, contextInput, language);
-        setContextResult(contextData);
-      } else {
-        setContextResult(null);
-      }
+setResult(analysisData);
+setContextResult(analysisData.contextResult ?? null);
+
 
       const reportingName = regName || finalUserName || "Pengguna Tanpa Nama";
       const reportingPhone = phone || regPhone || "No HP Kosong";
@@ -219,7 +217,7 @@ sendReportToAdmin(
   reportingName,
   "Otomatis System",
   analysisData,
-  contextData
+  analysisData.contextResult ?? null
 )
   .then(() => console.log("📧 Laporan otomatis terkirim ke admin"))
   .catch(err => console.error("❌ Gagal kirim laporan admin:", err));
