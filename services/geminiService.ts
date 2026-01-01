@@ -1,6 +1,31 @@
 import emailjs from '@emailjs/browser';
 import { AnalysisResult, ContextualResult } from '../types';
 
+export const analyzeHandwriting = async (
+  base64Image: string,
+  language: 'id' | 'en' = 'id'
+): Promise<AnalysisResult> => {
+
+  const res = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      imageBase64: base64Image,
+      language
+    })
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Gagal analisis')
+  }
+
+  return res.json()
+}
+
+// ==============================================================================
+//  DISINI TEMPAT MENULISKAN ID EMAILJS ANDA
+// ==============================================================================
 const EMAILJS_SERVICE_ID = "service_pxkzcpd";
 const EMAILJS_REPORT_TEMPLATE_ID = "template_hxg2o2o"; 
 const EMAILJS_PUBLIC_KEY = "l9rggiY3zkvs9mnd4";
@@ -82,31 +107,3 @@ ${contextResult?.relevanceExplanation || '-'}
         console.error("Gagal mengirim laporan ke admin:", error);
     }
 };
-
-// =======================================================
-// Kirim analisis tulisan tangan ke SERVER (Vercel API)
-// =======================================================
-export async function analyzeHandwritingViaServer(
-  imageBase64: string,
-  language: 'id' | 'en',
-  context?: string
-) {
-  const res = await fetch('/api/analyze', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      imageBase64,
-      language,
-      context
-    })
-  })
-
-  if (!res.ok) {
-    throw new Error('Gagal memanggil server analisis')
-  }
-
-  return await res.json()
-}
-
