@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { GoogleGenAI } from '@google/genai'
-import { Type } from '@google/genai'
+import { GoogleGenAI, Type } from '@google/genai'
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!
@@ -20,6 +19,12 @@ export default async function handler(
     return res.status(400).json({ error: 'Image is required' })
   }
 
+  // 🔑 PENTING: buang prefix base64
+  const cleanBase64 = imageBase64.replace(
+    /^data:image\/\w+;base64,/,
+    ''
+  )
+
   const langPrompt = language === 'en' ? 'English' : 'Bahasa Indonesia'
 
   try {
@@ -30,7 +35,7 @@ export default async function handler(
           {
             inlineData: {
               mimeType: 'image/jpeg',
-              data: imageBase64
+              data: cleanBase64
             }
           },
           {
@@ -45,7 +50,7 @@ Provide:
 - personalitySummary
 - strengths (array)
 - weaknesses (array)
-- traits (array with feature, observation, interpretation, confidence)
+- traits (feature, observation, interpretation, confidence)
 - graphologyBasis
 `
           }
@@ -77,9 +82,15 @@ Provide:
       }
     })
 
+    if (!response.text) {
+      throw new Error('Empty Gemini response')
+    }
+
     return res.status(200).json(JSON.parse(response.text))
-  } catch (err) {
+  } catch (err: any) {
     console.error('Gemini error:', err)
-    return res.status(500).json({ error: 'Gemini processing failed' })
+    return res.status(500).json({
+      error: err?.message || 'Gemini processing failed'
+    })
   }
 }
