@@ -1,9 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { GoogleGenAI, Type } from '@google/genai'
+// NOTE: tokenService akan kita sambungkan penuh di langkah berikutnya
+// import { validateToken, burnToken } from '../services/tokenService'
+
+console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'OK' : 'MISSING')
+
+
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error('System configuration error')
+}
 
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY!
+  apiKey: process.env.GEMINI_API_KEY
 })
+
 
 export default async function handler(
   req: VercelRequest,
@@ -13,19 +23,40 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { imageBase64, language } = req.body
+  const { imageBase64, language, context } = req.body
+
+  console.log('BODY KE ANALYZE:', {
+  hasImage: Boolean(imageBase64),
+  imageType: typeof imageBase64,
+  imageLength: imageBase64?.length,
+  language
+})
+
 
   if (!imageBase64) {
-    return res.status(400).json({ error: 'Image is required' })
+    return res.status(400).json({
+      errorType: 'IMAGE_REQUIRED',
+      message: 'Gambar tulisan tangan wajib diunggah'
+    })
   }
 
-  // 🔑 PENTING: buang prefix base64
+  // 🔎 Validasi konteks (opsional, max 200)
+  if (context && typeof context === 'string' && context.length > 200) {
+    return res.status(400).json({
+      errorType: 'CONTEXT_TOO_LONG',
+      message: 'Konteks maksimal 200 karakter'
+    })
+  }
+
+  // 🔑 Bersihkan base64
   const cleanBase64 = imageBase64.replace(
     /^data:image\/\w+;base64,/,
     ''
   )
 
-  const langPrompt = language === 'en' ? 'English' : 'Bahasa Indonesia'
+  const langPrompt = language === 'en'
+    ? 'English'
+    : 'Bahasa Indonesia'
 
   try {
     const response = await ai.models.generateContent({
@@ -42,11 +73,17 @@ export default async function handler(
             text: `
 Analyze this handwriting sample using graphology principles.
 
-IMPORTANT:
+IMPORTANT RULES:
+- If the image does NOT contain handwriting, respond with: "NO_HANDWRITING"
+- If handwriting exists but is unreadable or too poor in quality, respond with: "IMAGE_QUALITY_FAILED"
 - Output strictly in ${langPrompt}
-- Output must be valid JSON
+- Output must be valid JSON only
 
-Provide:
+${context ? `Context (optional, for interpretation only):
+"${context}"
+Do NOT change the base analysis, only relate the interpretation to this context.` : ''}
+
+Provide JSON with:
 - personalitySummary
 - strengths (array)
 - weaknesses (array)
@@ -83,14 +120,50 @@ Provide:
     })
 
     if (!response.text) {
-      throw new Error('Empty Gemini response')
+      return res.status(422).json({
+        errorType: 'NO_HANDWRITING_DETECTED',
+        message: 'Sistem tidak menemukan tulisan tangan pada gambar'
+      })
     }
 
-    return res.status(200).json(JSON.parse(response.text))
+    // 🧠 Deteksi pesan khusus dari sistem
+    if (response.text.includes('NO_HANDWRITING')) {
+      return res.status(422).json({
+        errorType: 'NO_HANDWRITING_DETECTED',
+        message: 'Tidak ditemukan tulisan tangan pada gambar'
+      })
+    }
+
+    if (response.text.includes('IMAGE_QUALITY_FAILED')) {
+      return res.status(422).json({
+        errorType: 'IMAGE_QUALITY_FAILED',
+        message: 'Kualitas gambar terlalu buruk untuk dianalisis'
+      })
+    }
+
+    const parsedResult = JSON.parse(response.text)
+
+    // 🔥 TOKEN BARU BOLEH DIBAKAR DI SINI (LANGKAH BERIKUTNYA)
+    // await burnToken(tokenId)
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: parsedResult
+    })
+
   } catch (err: any) {
-    console.error('Gemini error:', err)
-    return res.status(500).json({
-      error: err?.message || 'Gemini processing failed'
+    console.error('System processing error:', err)
+
+    if (err?.message?.includes('fetch')) {
+      return res.status(503).json({
+        errorType: 'NETWORK_ERROR',
+        message: 'Koneksi jaringan terputus'
+      })
+    }
+
+    return res.status(503).json({
+      errorType: 'SYSTEM_UNAVAILABLE',
+      message: 'Sistem tidak dapat memproses permintaan saat ini'
     })
   }
 }
