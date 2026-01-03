@@ -22,9 +22,9 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { phone, token, deviceId } = req.body
+  const { phone, token } = req.body
 
-  if (!phone || !token || !deviceId) {
+  if (!phone || !token) {
     return res.status(400).json({
       error: 'Data verifikasi tidak lengkap'
     })
@@ -34,9 +34,9 @@ export default async function handler(
     // 1️⃣ Cari token yang valid & belum dipakai
     const { data: tokenRow, error } = await supabase
       .from('tokens')
-      .select('*')
+      .select('id, phone, used')
       .eq('phone', phone)
-      .eq('code', token)
+      .eq('token', token)
       .eq('used', false)
       .single()
 
@@ -46,39 +46,6 @@ export default async function handler(
       })
     }
 
-    // 2️⃣ Cek device binding
-    if (tokenRow.device_id && tokenRow.device_id !== deviceId) {
-      return res.status(403).json({
-        error: 'Token sudah digunakan di perangkat lain'
-      })
-    }
-
-    // 3️⃣ Ikat token ke device (JIKA BELUM)
-    if (!tokenRow.device_id) {
-      const { error: updateError } = await supabase
-        .from('tokens')
-        .update({
-          device_id: deviceId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', tokenRow.id)
-
-      if (updateError) {
-        console.error(updateError)
-        return res.status(500).json({
-          error: 'Sistem gagal memverifikasi perangkat'
-        })
-      }
-    }
-
-    // 4️⃣ Catat attempt (logging, tidak membakar token)
-    await supabase.from('token_attempts').insert([
-      {
-        token_id: tokenRow.id,
-        device_id: deviceId,
-        status: 'verified'
-      }
-    ])
 
     // 5️⃣ KIRIM OK (token BELUM dibakar)
     return res.status(200).json({
