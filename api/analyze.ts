@@ -43,13 +43,16 @@ export default async function handler(
   }
 
   const ip = getClientIp(req)
+  let failedAttempts = 0
+
+try {
   const token = req.body?.token || '__NO_TOKEN__'
 
   const since = new Date(
     Date.now() - WINDOW_MINUTES * 60 * 1000
   ).toISOString()
 
-  const { count, error } = await supabase
+  const { count } = await supabase
     .from('token_attempts')
     .select('*', { count: 'exact', head: true })
     .eq('token', token)
@@ -57,7 +60,14 @@ export default async function handler(
     .eq('success', false)
     .gte('created_at', since)
 
-console.log('FAILED ATTEMPTS:', count)
+  failedAttempts = count ?? 0
+} catch (e) {
+  console.error('ATTEMPT CHECK FAILED:', e)
+  failedAttempts = 0
+}
+
+console.log('FAILED ATTEMPTS:', failedAttempts)
+
   
   console.log('CLIENT IP:', ip)
 
