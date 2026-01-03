@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { GoogleGenAI, Type } from '@google/genai'
+import { createClient } from '@supabase/supabase-js'
+
 // NOTE: tokenService akan kita sambungkan penuh di langkah berikutnya
 // import { validateToken, burnToken } from '../services/tokenService'
 
@@ -22,6 +24,14 @@ function getClientIp(req: VercelRequest): string {
   return req.socket.remoteAddress || 'unknown'
 }
 
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+const MAX_ATTEMPTS = 5
+const WINDOW_MINUTES = 15
+
 
 export default async function handler(
   req: VercelRequest,
@@ -33,6 +43,22 @@ export default async function handler(
   }
 
   const ip = getClientIp(req)
+  const token = req.body?.token
+
+  const since = new Date(
+    Date.now() - WINDOW_MINUTES * 60 * 1000
+  ).toISOString()
+
+  const { count, error } = await supabase
+    .from('token_attempts')
+    .select('*', { count: 'exact', head: true })
+    .eq('token', token)
+    .eq('ip_address', ip)
+    .eq('success', false)
+    .gte('created_at', since)
+
+console.log('FAILED ATTEMPTS:', count)
+  
   console.log('CLIENT IP:', ip)
 
   const { imageBase64, language, context } = req.body
