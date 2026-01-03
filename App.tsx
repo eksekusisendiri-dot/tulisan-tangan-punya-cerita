@@ -66,7 +66,9 @@ export const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone,
-          token: tokenInput
+          token: tokenInput,
+          challengeId,
+          answer: Number(answer)
         })
       })
 
