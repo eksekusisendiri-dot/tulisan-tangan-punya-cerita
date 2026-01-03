@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { jsPDF } from "jspdf"
 import { Layout } from './components/Layout'
 import { AppState, AnalysisResult } from './types'
@@ -8,6 +8,9 @@ import {
 } from './services/geminiService'
 
 export const App: React.FC = () => {
+  /* =========================
+     GLOBAL STATE
+  ========================= */
   const [state, setState] = useState<AppState>(AppState.CHOICE)
   const [language, setLanguage] = useState<'id' | 'en'>('id')
 
@@ -18,10 +21,72 @@ export const App: React.FC = () => {
   const [result, setResult] = useState<AnalysisResult | null>(null)
 
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
   const [finalUserName, setFinalUserName] = useState("")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  /* =========================
+     LOGIN STATE (LOCKED)
+  ========================= */
+  const [phone, setPhone] = useState("")
+  const [tokenInput, setTokenInput] = useState("")
+  const [challengeId, setChallengeId] = useState("")
+  const [question, setQuestion] = useState("")
+  const [answer, setAnswer] = useState("")
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginLoading, setLoginLoading] = useState(false)
+
+  /* =========================
+     FETCH HUMAN CHALLENGE
+  ========================= */
+  useEffect(() => {
+    if (state !== AppState.LOCKED) return
+
+    fetch('/api/challenge')
+      .then(res => res.json())
+      .then(data => {
+        setChallengeId(data.challengeId)
+        setQuestion(data.question)
+      })
+      .catch(() => {
+        setLoginError("Gagal memuat soal verifikasi")
+      })
+  }, [state])
+
+  /* =========================
+     HANDLE LOGIN
+  ========================= */
+  const handleLogin = async () => {
+    setLoginError(null)
+    setLoginLoading(true)
+
+    try {
+      const res = await fetch('/api/verify-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          token: tokenInput
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setLoginError(data.error || 'Login gagal')
+        setLoginLoading(false)
+        return
+      }
+
+      // LOGIN BERHASIL
+      setState(AppState.READY_FOR_UPLOAD)
+
+    } catch {
+      setLoginError('Server tidak dapat dihubungi')
+    } finally {
+      setLoginLoading(false)
+    }
+  }
 
   /* =========================
      UPLOAD IMAGE
@@ -55,7 +120,6 @@ export const App: React.FC = () => {
       const analysisData = await analyzeHandwriting(imageBase64, language)
       setResult(analysisData)
 
-      // kirim laporan admin (aman, tidak blok UI)
       sendReportToAdmin(
         "-",
         finalUserName || "Pengguna",
@@ -72,30 +136,6 @@ export const App: React.FC = () => {
     }
   }
 
-  const downloadSimplePDF = () => {
-  if (!result) {
-    alert("Belum ada hasil analisis")
-    return
-  }
-
-  const doc = new jsPDF()
-
-  doc.setFontSize(16)
-  doc.text("Hasil Analisis Tulisan Tangan", 20, 20)
-
-  doc.setFontSize(11)
-  let y = 40
-
-  if (typeof result === "string") {
-    doc.text(result, 20, y, { maxWidth: 170 })
-  } else {
-    const text = JSON.stringify(result, null, 2)
-    doc.text(text, 20, y, { maxWidth: 170 })
-  }
-
-  doc.save("hasil-analisis.pdf")
-}
-
   /* =========================
      RESET
   ========================= */
@@ -107,43 +147,86 @@ export const App: React.FC = () => {
     setContextInput("")
     setError(null)
     setFinalUserName("")
+    setPhone("")
+    setTokenInput("")
+    setAnswer("")
   }
 
   /* =========================
      PDF
   ========================= */
-  const generatePDF = () => {
-    if (!result || !finalUserName) return
+  const downloadSimplePDF = () => {
+    if (!result) return
 
     const doc = new jsPDF()
     doc.setFontSize(16)
     doc.text("Hasil Analisis Tulisan Tangan", 20, 20)
-
     doc.setFontSize(11)
-    doc.text(`Nama: ${finalUserName}`, 20, 35)
-    doc.text(result.personalitySummary, 20, 50, { maxWidth: 170 })
-
-    doc.save(`Hasil_Grafologi_${finalUserName}.pdf`)
+    doc.text(result.personalitySummary, 20, 40, { maxWidth: 170 })
+    doc.save("hasil-analisis.pdf")
   }
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <Layout>
 
+      {/* CHOICE */}
       {state === AppState.CHOICE && (
         <div className="text-center py-20">
           <h1 className="text-3xl font-bold mb-4">Tulisan Tangan Punya Cerita</h1>
           <button
             className="bg-indigo-600 text-white px-6 py-3 rounded-xl"
-            onClick={() => setState(AppState.READY_FOR_UPLOAD)}
+            onClick={() => setState(AppState.LOCKED)}
           >
             Mulai Analisis
           </button>
         </div>
       )}
 
+      {/* LOGIN */}
+      {state === AppState.LOCKED && (
+        <div className="max-w-md mx-auto py-20 space-y-4">
+          <h2 className="text-2xl font-bold text-center">Verifikasi Akses</h2>
+
+          <input
+            className="border p-3 rounded-xl w-full"
+            placeholder="Nomor HP"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+          />
+
+          <input
+            className="border p-3 rounded-xl w-full"
+            placeholder="Token"
+            value={tokenInput}
+            onChange={e => setTokenInput(e.target.value)}
+          />
+
+          <label className="block font-medium">{question}</label>
+          <input
+            className="border p-3 rounded-xl w-full"
+            placeholder="Jawaban"
+            value={answer}
+            onChange={e => setAnswer(e.target.value)}
+          />
+
+          {loginError && <p className="text-red-600">{loginError}</p>}
+
+          <button
+            onClick={handleLogin}
+            disabled={loginLoading}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl w-full"
+          >
+            {loginLoading ? "Memverifikasi..." : "Masuk"}
+          </button>
+        </div>
+      )}
+
+      {/* UPLOAD */}
       {state === AppState.READY_FOR_UPLOAD && (
         <div className="max-w-3xl mx-auto space-y-6">
-
           <div
             className="border-4 border-dashed p-10 text-center cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
@@ -160,13 +243,6 @@ export const App: React.FC = () => {
             />
           </div>
 
-          <textarea
-            className="w-full border p-4 rounded-xl"
-            placeholder="Konteks (opsional, belum diproses)"
-            value={contextInput}
-            onChange={e => setContextInput(e.target.value)}
-          />
-
           {error && <p className="text-red-500">{error}</p>}
 
           <button
@@ -178,13 +254,14 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {/* ANALYZING */}
       {state === AppState.ANALYZING && (
         <div className="text-center py-20">
-          <div className="animate-spin w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full mx-auto mb-4"></div>
           <p>Menganalisis tulisan tangan…</p>
         </div>
       )}
 
+      {/* ERROR */}
       {state === AppState.ERROR && (
         <div className="text-center py-20">
           <p className="text-red-600 mb-4">{error}</p>
@@ -194,10 +271,10 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {/* RESULT */}
       {state === AppState.RESULT && result && (
         <div className="max-w-4xl mx-auto py-10 space-y-6">
           <h2 className="text-2xl font-bold">Hasil Analisis</h2>
-
           <p className="italic">{result.personalitySummary}</p>
 
           <input
