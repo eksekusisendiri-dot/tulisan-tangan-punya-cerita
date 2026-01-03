@@ -43,7 +43,7 @@ export default async function handler(
   }
 
   const ip = getClientIp(req)
-  const token = req.body?.token
+  const token = req.body?.token || '__NO_TOKEN__'
 
   const since = new Date(
     Date.now() - WINDOW_MINUTES * 60 * 1000
