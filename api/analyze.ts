@@ -27,6 +27,7 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  console.log('ANALYZE HIT')
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
