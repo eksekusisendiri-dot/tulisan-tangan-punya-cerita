@@ -14,6 +14,14 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY
 })
 
+function getClientIp(req: VercelRequest): string {
+  const xff = req.headers['x-forwarded-for']
+  if (typeof xff === 'string' && xff.length > 0) {
+    return xff.split(',')[0].trim()
+  }
+  return req.socket.remoteAddress || 'unknown'
+}
+
 
 export default async function handler(
   req: VercelRequest,
@@ -22,6 +30,9 @@ export default async function handler(
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  const ip = getClientIp(req)
+  console.log('CLIENT IP:', ip)
 
   const { imageBase64, language, context } = req.body
 
