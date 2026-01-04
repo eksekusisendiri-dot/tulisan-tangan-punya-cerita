@@ -9,46 +9,6 @@ import {
 } from './services/geminiService'
 import { supabase } from './services/supabaseClient'
 
-// ===============================
-// IMAGE COMPRESSION (WAJIB)
-// ===============================
-const compressImage = (
-  file: File,
-  maxWidth = 1280,
-  quality = 0.7
-): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      img.src = reader.result as string
-    }
-
-    reader.onerror = reject
-
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      const scale = Math.min(1, maxWidth / img.width)
-
-      canvas.width = img.width * scale
-      canvas.height = img.height * scale
-
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        reject('Canvas error')
-        return
-      }
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-      const compressed = canvas.toDataURL('image/jpeg', quality)
-      resolve(compressed)
-    }
-  })
-}
-
-
 // --- KONFIGURASI ADMIN ---
 // Ubah nomor ini di satu tempat saja, otomatis semua link WA di aplikasi akan berubah.
 const ADMIN_WA = "62895802824612"; 
@@ -206,23 +166,16 @@ if (error || data !== true) {
 }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0]
-  if (!file) return
-
-  try {
-    setError(null)
-
-    // 🔥 COMPRESS DI SINI
-    const compressed = await compressImage(file)
-
-    setImagePreview(compressed)
-    setImageBase64(compressed.split(',')[1])
-  } catch (err) {
-    console.error(err)
-    setError('Gagal memproses gambar. Coba foto lain.')
-  }
-}
-
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const resultStr = event.target?.result as string;
+      setImagePreview(resultStr);
+      setImageBase64(resultStr.split(',')[1]); 
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleProcessAnalysis = async () => {
     if (!imageBase64) {
