@@ -25,6 +25,33 @@ export const analyzeHandwriting = async (
   return res.json()
 }
 
+// =======================
+// CONTEXTUAL ANALYSIS
+// =======================
+export const analyzeContextualHandwriting = async (
+  baseAnalysis: AnalysisResult,
+  context: string,
+  language: 'id' | 'en' = 'id'
+): Promise<ContextualResult> => {
+  const res = await fetch('/api/analyze-context', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      baseAnalysis,
+      context,
+      language
+    })
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Gagal analisis kontekstual')
+  }
+
+  return res.json()
+}
+
+
 // ==============================================================================
 // EMAIL ADMIN
 // ==============================================================================
