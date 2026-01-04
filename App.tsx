@@ -529,7 +529,7 @@ setState(AppState.RESULT);
           </div>
 
           {/* Marketing Hook */}
-            <div className="mt-8 bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-6 shadow-sm inline-block transform hover:scale-[1.02] transition-transform duration-300">
+            <div className="mt-8 mb-6 bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-6 shadow-sm inline-block transform hover:scale-[1.02] transition-transform duration-300">
                 <p className="text-indigo-900 text-base leading-relaxed">
                    <span className="font-bold block text-lg mb-1">🔥 Jangan lewatkan kesempatan emas ini!</span>
                    Tertarik menganalisis tulisan tangan Anda? Dapatkan token aksesnya hanya seharga <span className="font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">Rp 30.000-an (tiga puluh ribuan)</span>.
