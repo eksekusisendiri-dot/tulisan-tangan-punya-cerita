@@ -138,7 +138,7 @@ export const App: React.FC = () => {
   'verify_and_burn_token',
   {
     p_phone: verificationPhone,
-    p_code: inputToken
+    p_token: inputToken
   }
 )
 
