@@ -9,6 +9,46 @@ import {
 } from './services/geminiService'
 import { supabase } from './services/supabaseClient'
 
+// ===============================
+// IMAGE COMPRESSION (WAJIB)
+// ===============================
+const compressImage = (
+  file: File,
+  maxWidth = 1280,
+  quality = 0.7
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      img.src = reader.result as string
+    }
+
+    reader.onerror = reject
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const scale = Math.min(1, maxWidth / img.width)
+
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject('Canvas error')
+        return
+      }
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      const compressed = canvas.toDataURL('image/jpeg', quality)
+      resolve(compressed)
+    }
+  })
+}
+
+
 // --- KONFIGURASI ADMIN ---
 // Ubah nomor ini di satu tempat saja, otomatis semua link WA di aplikasi akan berubah.
 const ADMIN_WA = "62895802824612"; 
@@ -166,16 +206,23 @@ if (error || data !== true) {
 }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const resultStr = event.target?.result as string;
-      setImagePreview(resultStr);
-      setImageBase64(resultStr.split(',')[1]); 
-    };
-    reader.readAsDataURL(file);
-  };
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  try {
+    setError(null)
+
+    // 🔥 COMPRESS DI SINI
+    const compressed = await compressImage(file)
+
+    setImagePreview(compressed)
+    setImageBase64(compressed.split(',')[1])
+  } catch (err) {
+    console.error(err)
+    setError('Gagal memproses gambar. Coba foto lain.')
+  }
+}
+
 
   const handleProcessAnalysis = async () => {
     if (!imageBase64) {
@@ -434,15 +481,7 @@ setState(AppState.RESULT);
           <div className="text-center mb-12">
             <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">Selamat Datang <br/><span className="text-indigo-600">Para Penjelajah Tulisan Tangan</span></h2>
             <p className="text-slate-600 text-lg mt-4">Dapatkan gambaran diri secara probabilistik melalui analisis tulisan tangan Anda.</p>
-            
-            {/* Marketing Hook */}
-            <div className="mt-8 bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-6 shadow-sm inline-block transform hover:scale-[1.02] transition-transform duration-300">
-                <p className="text-indigo-900 text-base leading-relaxed">
-                   <span className="font-bold block text-lg mb-1">🔥 Jangan lewatkan kesempatan emas ini!</span>
-                   Tertarik menganalisis tulisan tangan Anda? Dapatkan token aksesnya hanya seharga <span className="font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">Rp 30.000-an (tiga puluh ribuan)</span>.
-                   Investasi kecil untuk pemahaman besar tentang diri Anda.
-                </p>
-            </div>
+                       
           </div>
           
           {/* SECTION: Knowledge Hook (Brain Prints) with Image */}
@@ -488,6 +527,15 @@ setState(AppState.RESULT);
                </div>
              </div>
           </div>
+
+          {/* Marketing Hook */}
+            <div className="mt-8 bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-6 shadow-sm inline-block transform hover:scale-[1.02] transition-transform duration-300">
+                <p className="text-indigo-900 text-base leading-relaxed">
+                   <span className="font-bold block text-lg mb-1">🔥 Jangan lewatkan kesempatan emas ini!</span>
+                   Tertarik menganalisis tulisan tangan Anda? Dapatkan token aksesnya hanya seharga <span className="font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">Rp 30.000-an (tiga puluh ribuan)</span>.
+                   Investasi kecil untuk pemahaman besar tentang diri Anda.
+                </p>
+            </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
             <button 
@@ -821,8 +869,8 @@ setState(AppState.RESULT);
                             </svg>
                         </div>
                         <div>
-                            <p className="text-lg font-bold text-slate-700">Pilih Foto Tulisan</p>
-                            <p className="text-xs text-slate-400 mt-1">Format JPG/PNG</p>
+                            <p className="text-lg font-bold text-slate-700">Pilih File Foto Tulisan</p>
+                            <p className="text-xs text-slate-400 mt-1">Format JPG/PNG Ukuran Kurang Dari 1 MB Atau 1000 Kb</p>
                         </div>
                     </div>
                 )}
@@ -836,8 +884,8 @@ setState(AppState.RESULT);
                         <label className="block text-sm font-bold text-slate-700">
                             Konteks / Pertanyaan (Opsional)
                         </label>
-                        <span className={`text-[10px] font-bold ${contextInput.length >= 500 ? 'text-red-500' : 'text-slate-400'}`}>
-                            {contextInput.length}/500
+                        <span className={`text-[10px] font-bold ${contextInput.length >= 200 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {contextInput.length}/200
                         </span>
                     </div>
                     <p className="text-xs text-slate-400 mb-4">
@@ -846,7 +894,7 @@ setState(AppState.RESULT);
                     <textarea 
                         maxLength={500}
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-40 resize-none"
-                        placeholder={language === 'id' ? "1. Apakah saya cocok jadi pemimpin?\n2. Bagaimana karakter saya saat tertekan?\n3. ..." : "1. Am I suitable as a leader?\n2. ..."}
+                        placeholder={language === 'id' ? "Misalnya: \n1. Bagaimana jika saya bekerja sebagai Data Analyst?\n2. Bagaimana karakter saya saat tertekan?\n3. ..." : "1. How would it be if I worked as a Data Analyst?\n2. ..."}
                         value={contextInput}
                         onChange={(e) => setContextInput(e.target.value)}
                     />
@@ -866,9 +914,9 @@ setState(AppState.RESULT);
                             </svg>
                         )}
                      </button>
-                     <p className="text-[10px] text-center text-red-400 italic">
-                        *Token akan hangus setelah tombol ini ditekan.
-                     </p>
+                     {/*<p className="text-[10px] text-center text-red-400 italic">
+                        Keterangan Saat Proses Di Tekan
+                     </p>*/}
                 </div>
             </div>
           </div>
