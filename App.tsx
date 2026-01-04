@@ -741,7 +741,7 @@ setState(AppState.RESULT);
                         Persiapan Sebelum Masuk
                     </p>
                     <p className="text-xs text-amber-600 mt-1">
-                        Pastikan Anda sudah memiliki <b>foto tulisan tangan yang jelas Maksimal Ukuran 1 MB</b> di galeri HP/Laptop Anda sebelum melanjutkan. Token akan langsung diverifikasi setelah ini.
+                        Pastikan Anda sudah memiliki <b>foto tulisan tangan yang jelas Maksimal Ukuran 1 MB</b> di galeri HP/Laptop Anda sebelum melanjutkan.
                     </p>
                     <p className="text-[10px] text-red-600 mt-2 italic font-bold">
                         *Token hanya dapat digunakan satu kali untuk masuk.
@@ -800,10 +800,6 @@ setState(AppState.RESULT);
               {isLoading ? 'Memverifikasi...' : 'Masuk Ke Analisis'}
             </button>
           </form>
-          <p className="mt-6 text-[10px] text-center text-slate-400 italic">
-            *Token hanya bisa digunakan 1 kali untuk setiap analisis.
-            <br/>Token berlaku selama 24 jam.
-          </p>
         </div>
       )}
 
